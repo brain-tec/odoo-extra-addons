@@ -3,11 +3,6 @@
     <data noupdate="1">
 
         <!-- Sequences for products -->
-        <record id="seq_type_product_product" model="ir.sequence.type">
-            <field name="name">Product</field>
-            <field name="code">product.product</field>
-        </record>
-
         <record id="seq_product_product" model="ir.sequence">
             <field name="name">Product</field>
             <field name="code">product.product</field>
