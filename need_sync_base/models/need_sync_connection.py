@@ -36,18 +36,64 @@ class NeedSyncConnection(models.Model):
         inverse_name="need_sync_connection",
         string="Allowed Models"
     )
+    published = fields.Boolean(
+        compute="_get_published",
+        #inverse="_set_published",
+        string="Published"
+    )
 
     _sql_constraints = {
         ('connection_uniq', 'unique(connection)', 'Connection needs to be unique')
     }
 
-    @api.one
+    def _set_published(self):
+        """
+        Hook to trigger editable field
+        :return:
+        """
+        return True
+
+    @api.model
+    def check_res_model(self, res_id, model):
+        return res_id, model
+
+    @api.model
+    def check_unpublished(self, res_id, model):
+        unpublished = self.env['need.sync.connection.record.exception'].search(
+            [
+                ('res_id', '=', res_id),
+                ('model', '=', model),
+                ('need_sync_connection', '=', self.id)
+            ]
+        )
+        if unpublished:
+            return True
+        else:
+            return False
+
+    @api.multi
+    def _get_published(self):
+        for rec in self:
+            _logger.debug("Context: %s", rec._context)
+            if rec._context.get('active_id') and rec._context.get('active_model'):
+                res_id, model = rec.check_res_model(rec._context.get('active_id'), rec._context.get('active_model'))
+                _logger.debug("Res_id: %s, Model: %s", res_id, model)
+                if rec.check_unpublished(res_id, model):
+                    rec.published = False
+                else:
+                    rec.published = True
+            else:
+                rec.published = True
+
+
+    @api.multi
     @api.depends('connection')
     def _get_name(self):
-        if self.connection and 'name' in self.connection._fields:
-            self.name = '%s' % (self.connection.name)
-        else:
-            self.name = '%s' % ('No Connection Name')
+        for rec in self:
+            if rec.connection and 'name' in rec.connection._fields:
+                rec.name = '%s' % (rec.connection.name)
+            else:
+                rec.name = '%s' % ('No Connection Name')
 
     @api.model
     def get_need_sync_list(self, model):
@@ -62,3 +108,61 @@ class NeedSyncConnection(models.Model):
     @api.model
     def map_need_sync(self, model, res_ids):
         return self.env['need.sync.line'].map_need_sync(model, res_ids, self)
+
+    @api.model
+    def set_published(self, res_id, model, published, dest_model=None):
+        _logger.debug("ConnectionID: %s, Published: %s", self.id, published)
+        if dest_model and model != dest_model:
+            res_id, model = self.check_res_model(res_id, model)
+        if dest_model and model == dest_model or model:
+            unpublished = self.env['need.sync.connection.record.exception'].search(
+                [
+                    ('res_id', '=', res_id),
+                    ('model', '=', model),
+                    ('need_sync_connection', '=', self.id)
+                ]
+            )
+
+            if published and unpublished:
+                unpublished.unlink()
+            elif not published and not unpublished:
+                self.env['need.sync.connection.record.exception'].create(
+                    {
+                        'res_id': res_id,
+                        'model': model,
+                        'need_sync_connection': self.id
+                    }
+                )
+
+    @api.model
+    def get_dest_model(self, active_model):
+        return False
+
+    @api.multi
+    def manual_unpublish(self):
+        for rec in self:
+            if rec._context.get('active_id') and rec._context.get('active_model'):
+                dest_model = rec.get_dest_model(rec._context.get('active_model'))
+                rec.set_published(rec._context.get('active_id'), rec._context.get('active_model'), False, dest_model=dest_model)
+
+    @api.multi
+    def manual_publish(self):
+        for rec in self:
+            if rec._context.get('active_id') and rec._context.get('active_model'):
+                dest_model = rec.get_dest_model(rec._context.get('active_model'))
+                rec.set_published(rec._context.get('active_id'), rec._context.get('active_model'), True, dest_model=dest_model)
+
+    @api.multi
+    def set_last_sync_date(self, model, res_ids):
+        need_sync_lines = self.env['need.sync.line'].search(
+            [
+                ('need_sync_connection', '=', self.id),
+                ('res_id', 'in', res_ids),
+                ('model', '=', model)
+            ]
+        )
+        need_sync_lines.write(
+            {
+                'last_sync_date': fields.Datetime.now()
+            }
+        )
