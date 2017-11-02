@@ -1,9 +1,7 @@
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
-#    OpenERP, Open Source Management Solution
-#
-#    Copyright (c) 2015 ICTSTUDIO (www.ictstudio.eu).
+#    Copyright (C) 2015 ICTSTUDIO (<http://www.ictstudio.eu>).
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -12,11 +10,11 @@
 #
 #    This program is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU Affero General Public License for more details.
 #
 #    You should have received a copy of the GNU Affero General Public License
-#    along with this program. If not, see <http://www.gnu.org/licenses/>.
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
 
@@ -25,13 +23,14 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+
 class ProcurementOrder(models.Model):
     _inherit = 'procurement.order'
 
-    @api.model
-    def run_scheduler(self, use_new_cursor=False, company_id=False):
-        ctx = dict(self._context, no_assign_manual=True)
-        return super(ProcurementOrder, self.with_context(ctx)).run_scheduler(
-                use_new_cursor=use_new_cursor,
-                company_id=company_id
-        )
+    @api.multi
+    def make_po(self):
+        """
+        update context so that we can filter search result
+        """
+        ctx = dict(self._context, reuse_empty=True)
+        return super(ProcurementOrder, self.with_context(ctx)).make_po()
