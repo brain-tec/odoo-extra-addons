@@ -1,9 +1,9 @@
 .. image:: https://img.shields.io/badge/licence-AGPL--3-blue.svg
    :alt: License: AGPL-3
 
-Payment Transaction ID
-======================
-Glue the payment transaction module with the base transaction module.
+Payment - Workflow
+==================
+Module to create an invoice and register a payment after receiving the payment through the Payment Provider
 
 
 Bug Tracker
